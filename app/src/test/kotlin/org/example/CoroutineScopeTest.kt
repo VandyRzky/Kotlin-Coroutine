@@ -79,21 +79,52 @@ class CoroutineScopeTest {
     @Test
     fun coroutineParentChildTest(){
         val scope = CoroutineScope(Dispatchers.IO)
-        val job = scope.launch {
+        val job = scope.launch (Dispatchers.IO + CoroutineName("Parent Test")){
+        // ARGS: menentukan coroutine dispatcher dan memberi nama coroutine
             launch { // child coroutine
-//                delay(1000)
+                delay(1000)
                 println("Child 1, ${Thread.currentThread().name}, ${Date()}")
             }
             launch {
-//                delay(1000)
+                delay(3000)
                 println("Child 2, ${Thread.currentThread().name}, ${Date()}")
             }
             println("Parent, ${Thread.currentThread().name}, ${Date()}")
+
         }
 
         runBlocking {
+//            job.cancelChildren() //digunakan untuk mengcancel child coroutine
+
             job.join()
         }
     }
+
+    suspend fun runJob (number:Int){
+        println("Start Job $number, ${Thread.currentThread().name}, ${Date()}")
+        yield() // coroutine menyerahkan kontrol sementara ke dispatcher agar coroutine lain bisa dijalankan.
+//        delay(1_500)
+        println("Finish Job $number, ${Thread.currentThread().name}, ${Date()}")
+    }
+
+    @Test
+    fun yieldFunctionTest(){
+        val dispatcher = Executors.newSingleThreadExecutor().asCoroutineDispatcher()
+        val scope = CoroutineScope(dispatcher)
+        val name = CoroutineName("Yield Coroutine")
+//        val job = scope.launch( name ) {
+//            runJob(1)
+//            runJob(2)
+//        }
+
+        runBlocking {
+            scope.launch (name) { runJob(1) }
+            scope.launch (name) { runJob(2) }
+
+            delay(5_000)
+        }
+
+    }
+
 
 }

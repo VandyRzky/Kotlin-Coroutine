@@ -3,6 +3,7 @@ package org.example
 import kotlinx.coroutines.*
 import org.junit.jupiter.api.Test
 import java.util.Date
+import java.util.concurrent.Executors
 
 
 // ========= Job ==========
@@ -142,5 +143,53 @@ class JobTest {
         }
     }
 
+
+    @Test
+    fun supervisorJobTest(){
+        val dispatcher = Executors.newSingleThreadExecutor().asCoroutineDispatcher()
+
+        //dengan supervisor job, child coroutine gagal tanpa membatalkan sibling (saudara) coroutine lainnya.
+        val scope = CoroutineScope(dispatcher + SupervisorJob())
+
+        //tanpa supervisor job, seluruh child coroutine akan berhenti jika ada error salah satu sibling
+//        val scope = CoroutineScope(dispatcher)
+
+        val job = scope.launch {
+            delay(2000)
+            println("Hello")
+        }
+        val job2 = scope.launch {
+            delay(1000)
+            throw IllegalArgumentException()
+        }
+        runBlocking {
+            joinAll(job, job2)
+        }
+    }
+
+    @Test
+    fun supervisorJobScopeFuncTest(){
+        val dispatcher = Executors.newSingleThreadExecutor().asCoroutineDispatcher()
+        val scope = CoroutineScope(dispatcher)
+
+        runBlocking {
+            scope.launch {
+                supervisorScope { //digunakan ketika tidak bisa mengubah kondisi coroutine scope
+                    // coroutine tetap dijalankan walaupun error
+                    launch {
+                        delay(2000)
+                        println("Hello")
+                    }
+                    launch {
+                        delay(1000)
+                        throw IllegalArgumentException()
+                    }
+                }
+                delay(1000)
+                println("World")
+            }
+            delay(3000)
+        }
+    }
 
 }

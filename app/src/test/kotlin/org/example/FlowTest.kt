@@ -1,8 +1,7 @@
 package org.example
 
-import kotlinx.coroutines.delay
+import kotlinx.coroutines.*
 import kotlinx.coroutines.flow.*
-import kotlinx.coroutines.runBlocking
 import org.junit.jupiter.api.Test
 
 // ============== Flow ============
@@ -70,6 +69,67 @@ class FlowTest {
 //                if (it > 10) cancel() //untuk membatalkan flow
 //                else println(it)
 //            }.collect()
+        }
+    }
+
+    @Test
+    fun sharedFlowTest(){
+        // membuat flow dengan lebih dari 1 receiver
+        val scope = CoroutineScope(Dispatchers.IO)
+        val sharedFlow = MutableSharedFlow<Int>()
+        runBlocking {
+            scope.launch {
+                repeat(10){
+                    delay(1000)
+                    sharedFlow.emit(it)
+                }
+            }
+            scope.launch {
+                sharedFlow.asSharedFlow().collect{
+                    delay(2000)
+                    // akan ketinggalan data karene berjalan lebih lambat dari pada sender
+                    println("Shared flow 1 receive $it")
+                }
+            }
+            scope.launch {
+                sharedFlow.asSharedFlow().collect{
+                    delay(200)
+                    println("Shared flow 2 receive $it")
+                }
+            }
+            delay(21_000)
+            scope.cancel()
+        }
+    }
+
+    @Test
+    fun stateFlowTest(){
+        //seperti shared flow, akan tetapi jika sender mengirim data terlalu cepat
+        //maka receiver hanya akan menerima data yang paling akhir dikirim
+        val scope = CoroutineScope(Dispatchers.IO)
+        val stateFlow = MutableStateFlow<Int>(value = 0)
+        runBlocking {
+            scope.launch {
+                repeat(10){
+                    delay(100)
+                    stateFlow.emit(it)
+                }
+            }
+            scope.launch {
+                stateFlow.asSharedFlow().collect{
+                    delay(500)
+                    // akan ketinggalan data karene berjalan lebih lambat dari pada sender
+                    println("Shared flow 1 receive $it")
+                }
+            }
+            scope.launch {
+                stateFlow.asSharedFlow().collect{
+                    delay(250)
+                    println("Shared flow 2 receive $it")
+                }
+            }
+            delay(5000)
+            scope.cancel()
         }
     }
 
